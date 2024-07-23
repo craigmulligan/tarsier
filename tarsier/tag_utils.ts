@@ -83,7 +83,7 @@ function getElementXPath(element: HTMLElement | null) {
     iframe_str = `iframe[${element.getAttribute("iframe_index")}]`;
   }
 
-  while(element) {
+  while (element) {
     if (!element.tagName) {
       element = element.parentNode as HTMLElement | null;
       continue;
@@ -93,7 +93,7 @@ function getElementXPath(element: HTMLElement | null) {
     let sibling_index = 1;
 
     let sibling = element.previousElementSibling;
-    while(sibling) {
+    while (sibling) {
       if (sibling.tagName === element.tagName) {
         sibling_index++;
       }
@@ -103,7 +103,7 @@ function getElementXPath(element: HTMLElement | null) {
     // Check next siblings to determine if index should be added
     let nextSibling = element.nextElementSibling;
     let shouldAddIndex = false;
-    while(nextSibling) {
+    while (nextSibling) {
       if (nextSibling.tagName === element.tagName) {
         shouldAddIndex = true;
         break;
@@ -196,7 +196,7 @@ function getAllElementsInAllFrames(): HTMLElement[] {
   // Add all elements in iframes
   // NOTE: This still doesn't work for all iframes
   const iframes = document.getElementsByTagName('iframe');
-  for(let i = 0; i < iframes.length; i++) {
+  for (let i = 0; i < iframes.length; i++) {
     try {
       const frame = iframes[i];
       const iframeDocument = frame.contentDocument || frame.contentWindow?.document;
@@ -213,12 +213,50 @@ function getAllElementsInAllFrames(): HTMLElement[] {
   return allElements;
 }
 
+
+
+function hasLabel(element: HTMLElement): boolean {
+  const tagNames = ["input", "textarea", "select", "button"];
+
+  if (!tagNames.includes(element.tagName.toLowerCase())) {
+    return false;
+  }
+
+  const label = document.querySelector(`label[for='${element.id}']`);
+
+  if (label) {
+    return true;
+  }
+
+  let prevSibling = element.previousElementSibling;
+  while (prevSibling) {
+    if (prevSibling.tagName.toLowerCase() === "label") {
+      return true;
+    }
+    prevSibling = prevSibling.previousElementSibling;
+  }
+
+  let nextSibling = element.nextElementSibling;
+  while (nextSibling) {
+    if (nextSibling.tagName.toLowerCase() === "label") {
+      return true;
+    }
+    nextSibling = nextSibling.nextElementSibling;
+  }
+
+  return false;
+}
+
 function getElementsToTag(allElements: HTMLElement[], tagLeafTexts: boolean): HTMLElement[] {
   const elementsToTag: HTMLElement[] = [];
 
-  for(let el of allElements) {
+  for (let el of allElements) {
     if (isEmpty(el) || !elIsClean(el)) {
-      continue;
+      if (!hasLabel(el)) {
+        // if the element is not visible 
+        // but has a label them we still tag it.
+        continue;
+      }
     }
 
 
@@ -257,7 +295,7 @@ function removeNestedTags(elementsToTag: HTMLElement[]): HTMLElement[] {
 
       // Only remove nested tags if there is only a single element to remove
       if (elementsToRemove.length == 1) {
-        for(let element of elementsToRemove) {
+        for (let element of elementsToRemove) {
           res.splice(res.indexOf(element), 1);
         }
       }
@@ -271,7 +309,7 @@ function insertTags(elementsToTag: HTMLElement[], tagLeafTexts: boolean): { [key
   const idToXpath: { [key: number]: string } = {};
 
   let idNum = 0;
-  for(let el of elementsToTag) {
+  for (let el of elementsToTag) {
     idToXpath[idNum] = getElementXPath(el);
 
     let idSpan = create_tagged_span(idNum, el);
@@ -284,7 +322,7 @@ function insertTags(elementsToTag: HTMLElement[], tagLeafTexts: boolean): { [key
       }
       idNum++;
     } else if (tagLeafTexts) {
-      for(let child of Array.from(el.childNodes).filter(isNonWhiteSpaceTextNode)) {
+      for (let child of Array.from(el.childNodes).filter(isNonWhiteSpaceTextNode)) {
         let idSpan = create_tagged_span(idNum, el);
         el.insertBefore(idSpan, child);
         idNum++;
@@ -345,13 +383,13 @@ function absolutelyPositionMissingTags() {
       let fontSize = parseFloat(window.getComputedStyle(tag).fontSize.split("px")[0]);
       let otherFontSize = parseFloat(window.getComputedStyle(otherTag).fontSize.split("px")[0]);
 
-      while(
+      while (
         (tagRect.left < otherTagRect.right &&
           tagRect.right > otherTagRect.left) &&
         (tagRect.top < otherTagRect.bottom &&
           tagRect.bottom > otherTagRect.top) &&
         fontSize > 7 && otherFontSize > 7
-        ) {
+      ) {
         fontSize -= 0.5;
         otherFontSize -= 0.5;
         tag.style.fontSize = `${fontSize}px`;
